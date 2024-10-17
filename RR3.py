@@ -1,49 +1,59 @@
 import os
-import pandas as pd
+from typing import List, Tuple
+
 import numpy as np
-from sklearn.utils import resample
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.model_selection import train_test_split, KFold
+import pandas as pd
 from datasets import Dataset
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
 from peft import LoraConfig, TaskType, get_peft_model
+from sklearn import metrics, model_selection, utils
+from transformers import (DistilBertForSequenceClassification, DistilBertTokenizer,
+                          Trainer, TrainingArguments)
 
-# Disable WandB
-os.environ["WANDB_DISABLED"] = "true"
+# Constants
+FILE_PATH = '/notebooks/Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv'
+COLUMNS_TO_KEEP = ['name', 'brand', 'primaryCategories', 'reviews.text', 'reviews.rating']
+RANDOM_STATE = 42
+MAX_LENGTH = 512
+NUM_LABELS = 3
+NUM_FOLDS = 3
 
-def load_and_preprocess_data(file_path, columns_to_keep):
-    """Load and preprocess the dataset."""
+os.environ["WANDB_DISABLED"] = "true"  # Disable WandB
+
+def load_and_preprocess_data(file_path: str, columns: List[str]) -> pd.DataFrame:
     df = pd.read_csv(file_path)
-    return df[columns_to_keep]
+    return df[columns]
 
-def balance_dataset(df):
-    """Balance the dataset using upsampling."""
+def balance_dataset(df: pd.DataFrame) -> pd.DataFrame:
     positive_reviews = df[df['reviews.rating'] >= 4]
     neutral_reviews = df[df['reviews.rating'] == 3]
     negative_reviews = df[df['reviews.rating'] <= 2]
 
     max_class_size = max(len(positive_reviews), len(neutral_reviews), len(negative_reviews))
-    positive_upsampled = resample(positive_reviews, replace=True, n_samples=max_class_size, random_state=42)
-    neutral_upsampled = resample(neutral_reviews, replace=True, n_samples=max_class_size, random_state=42)
-    negative_upsampled = resample(negative_reviews, replace=True, n_samples=max_class_size, random_state=42)
+    
+    positive_upsampled = utils.resample(positive_reviews, replace=True, n_samples=max_class_size, random_state=RANDOM_STATE)
+    neutral_upsampled = utils.resample(neutral_reviews, replace=True, n_samples=max_class_size, random_state=RANDOM_STATE)
+    negative_upsampled = utils.resample(negative_reviews, replace=True, n_samples=max_class_size, random_state=RANDOM_STATE)
 
-    df_balanced = pd.concat([positive_upsampled, neutral_upsampled, negative_upsampled]).sample(frac=1, random_state=42)
+    df_balanced = pd.concat([positive_upsampled, neutral_upsampled, negative_upsampled]).sample(frac=1, random_state=RANDOM_STATE)
     df_balanced['labels'] = df_balanced['reviews.rating'].map(lambda rating: 0 if rating <= 2 else (1 if rating == 3 else 2))
+    
     return df_balanced
 
-def prepare_datasets(df):
-    """Prepare train and test datasets."""
-    X_train, X_test, y_train, y_test = train_test_split(
-        df['reviews.text'], df['labels'], test_size=0.2, random_state=42
+def prepare_datasets(df: pd.DataFrame) -> Tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    return model_selection.train_test_split(
+        df['reviews.text'], df['labels'], test_size=0.2, random_state=RANDOM_STATE
     )
-    return X_train, X_test, y_train, y_test
 
-def tokenize_data(tokenizer, texts, max_length=512):
-    """Tokenize the input texts."""
-    return tokenizer(texts.tolist(), truncation=True, padding='max_length', max_length=max_length, return_tensors='pt')
+def tokenize_data(tokenizer, texts, max_length=MAX_LENGTH):
+    return tokenizer(
+        texts.tolist(),
+        truncation=True,
+        padding='max_length',
+        max_length=max_length,
+        return_tensors='pt'
+    )
 
 def create_hf_dataset(encodings, labels):
-    """Create a HuggingFace Dataset."""
     return Dataset.from_dict({
         'input_ids': encodings['input_ids'].tolist(),
         'attention_mask': encodings['attention_mask'].tolist(),
@@ -51,14 +61,12 @@ def create_hf_dataset(encodings, labels):
     })
 
 def setup_model_and_trainer(num_labels, lora_config, training_args, train_dataset):
-    """Set up the DistilBERT model with LoRA and initialize the Trainer."""
     model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=num_labels)
     model = get_peft_model(model, lora_config)
     return Trainer(model=model, args=training_args, train_dataset=train_dataset)
 
-def run_cross_validation(trainer, X_train, y_train, tokenizer, n_splits=3):
-    """Run cross-validation and return fold metrics."""
-    kf = KFold(n_splits=n_splits)
+def run_cross_validation(trainer, X_train, y_train, tokenizer, n_splits=NUM_FOLDS):
+    kf = model_selection.KFold(n_splits=n_splits)
     fold_metrics = []
 
     for fold, (train_idx, val_idx) in enumerate(kf.split(X_train)):
@@ -82,38 +90,23 @@ def run_cross_validation(trainer, X_train, y_train, tokenizer, n_splits=3):
 
         fold_metrics.append({
             'fold': fold + 1,
-            'accuracy': accuracy_score(y_fold_val, preds),
-            'precision': precision_score(y_fold_val, preds, average='weighted'),
-            'recall': recall_score(y_fold_val, preds, average='weighted'),
-            'f1': f1_score(y_fold_val, preds, average='weighted')
+            'accuracy': metrics.accuracy_score(y_fold_val, preds),
+            'precision': metrics.precision_score(y_fold_val, preds, average='weighted'),
+            'recall': metrics.recall_score(y_fold_val, preds, average='weighted'),
+            'f1': metrics.f1_score(y_fold_val, preds, average='weighted')
         })
 
     return fold_metrics
 
-def print_average_metrics(fold_metrics):
-    """Print average metrics across all folds."""
-    avg_metrics = {metric: np.mean([f[metric] for f in fold_metrics]) 
-                   for metric in ['accuracy', 'precision', 'recall', 'f1']}
-    
-    for metric, value in avg_metrics.items():
-        print(f"Avg {metric.capitalize()}: {value:.4f}")
-
 def main():
-    # Load and preprocess data
-    file_path = '/notebooks/Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv'
-    columns_to_keep = ['name', 'brand', 'primaryCategories', 'reviews.text', 'reviews.rating']
-    df = load_and_preprocess_data(file_path, columns_to_keep)
+    df = load_and_preprocess_data(FILE_PATH, COLUMNS_TO_KEEP)
     df_balanced = balance_dataset(df)
-
-    # Prepare datasets
     X_train, X_test, y_train, y_test = prepare_datasets(df_balanced)
 
-    # Tokenize data
     tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
     train_encodings = tokenize_data(tokenizer, X_train)
     train_dataset = create_hf_dataset(train_encodings, y_train)
 
-    # LoRA Configuration
     lora_config = LoraConfig(
         task_type=TaskType.SEQ_CLS,
         r=8,
@@ -122,7 +115,6 @@ def main():
         target_modules=["q_lin", "v_lin"]
     )
 
-    # Training Arguments
     training_args = TrainingArguments(
         output_dir='./results',
         learning_rate=2e-5,
@@ -137,14 +129,14 @@ def main():
         no_cuda=False
     )
 
-    # Setup model and trainer
-    trainer = setup_model_and_trainer(3, lora_config, training_args, train_dataset)
-
-    # Run cross-validation
+    trainer = setup_model_and_trainer(NUM_LABELS, lora_config, training_args, train_dataset)
     fold_metrics = run_cross_validation(trainer, X_train, y_train, tokenizer)
 
-    # Print average metrics
-    print_average_metrics(fold_metrics)
+    avg_metrics = {metric: np.mean([f[metric] for f in fold_metrics]) 
+                   for metric in ['accuracy', 'precision', 'recall', 'f1']}
+    
+    for metric, value in avg_metrics.items():
+        print(f"Avg {metric.capitalize()}: {value:.4f}")
 
 if __name__ == "__main__":
     main()
