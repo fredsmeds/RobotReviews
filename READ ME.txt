@@ -1,0 +1,38 @@
+according to the info on 1_variables_operators if I define a variable such as
+
+age = 25
+age = 30
+new_age = 35
+
+and then in na additional cell I call the variable 'age' and run the cell, I should obtain the last variable, and indeed it happens.
+
+However, when I try to use either the print() feat. (i.g. print(new_age)) I will have an error. 
+
+Furthermore, what I am understanding from the lesson is that both features have the same function. 
+
+Anaconda AI assistant states that "there might also be a conflict with a function or method that you are trying to call."
+
+Does this mean that I can't use both functions? Because by the excercise notebook logic, it seems that it is possible
+here is a screenshot of my notebook. Thank you so much in advance <3
+
+a. Description of the problema
+according to the info on 1_variables_operators if I define a variable such as
+
+age = 25
+age = 30
+new_age = 35
+
+and then in na additional cell I call the variable 'age' and run the cell, I should obtain the last variable, and indeed it happens.
+
+However, when I try to use either the print() feat. (i.g. print(new_age)) I will have an error. 
+b. Project/lab you are working on
+AI Engeneering, Prework excercises
+
+c. What have you tried already?
+I have used the Jupyter integrated AI for information. Says the variable has not been defined but it has in Cell 94
+
+d. Urgency of your request 
+Normal
+
+e. Type of support needed
+code review
