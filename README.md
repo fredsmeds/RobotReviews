@@ -40,44 +40,43 @@ You can install the necessary packages using pip:
 
 ```bash
 pip install numpy pandas matplotlib seaborn torch transformers datasets scikit-learn peft
-Installation
+```
+## Installation
 Clone this repository:
-
-bash
-Copy code
+```
 git clone <repository-url>
 cd <repository-folder>
+```
 Install the required packages as mentioned above.
 
 Prepare your dataset and ensure it is in the correct format.
 
-Usage
+## Usage
 Data Preparation
 Place your dataset CSV file in the specified path (FILE_PATH in the code).
 Modify the COLUMNS_TO_KEEP constant if your dataset has different column names.
-Training
+
+## Training
 To train the model, run the following command:
 
-bash
-Copy code
-python train.py
+´´´python train.py
+´´´
 This will load the dataset, balance it, and start the training process. The trained model will be saved in the ./saved_model directory.
 
-Testing
+## Testing
 To test the model, you can use the following command:
 
-bash
-Copy code
+´´´
 python test.py
+´´´
+
 Make sure to set the TEST_FILE_PATH variable to point to your test data CSV file.
 
-Results
+## Results
 The training script will output average metrics (accuracy, precision, recall, F1 score) and display a confusion matrix of the predictions.
 
-License
+## License
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-typescript
-Copy code
-
+´´´
 Make sure to replace `<repository-url>` and `<repository-folder>` with the actual URL of your repository and the folder name, respectively. You can also adjust any sections to better match the specifics of your project or your coding style!
+´´´
