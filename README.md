@@ -59,16 +59,19 @@ Modify the COLUMNS_TO_KEEP constant if your dataset has different column names.
 ## Training
 To train the model, run the following command:
 
-´´´python train.py
-´´´
+```
+python train.py
+```
+
 This will load the dataset, balance it, and start the training process. The trained model will be saved in the ./saved_model directory.
 
 ## Testing
 To test the model, you can use the following command:
 
-´´´
+```
+
 python test.py
-´´´
+```
 
 Make sure to set the TEST_FILE_PATH variable to point to your test data CSV file.
 
@@ -77,6 +80,8 @@ The training script will output average metrics (accuracy, precision, recall, F1
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
-´´´
+```
+
 Make sure to replace `<repository-url>` and `<repository-folder>` with the actual URL of your repository and the folder name, respectively. You can also adjust any sections to better match the specifics of your project or your coding style!
-´´´
+```
+
